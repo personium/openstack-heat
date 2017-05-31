@@ -1,0 +1,817 @@
+heat_template_version: 2013-05-23
+description: Create Network For Personium system.
+
+parameters:
+
+  availability_zone:
+    type: string
+    description: Availability zone
+    default: { Availability zone } # set Availability zone
+
+  #DMZ Network Configuration
+  network_dmz_name:
+    type: string
+    description: Name of the dmz network
+    default: dmz_network
+
+  subnet_dmz_name:
+    type: string
+    description: Name of the dmz subnetwork.
+    default: dmz_subnet
+
+  dmz_subnet_cidr:
+    type: string
+    description: CIDR representation of the dmz subnet.
+    default: 172.16.0.0/24
+
+  dmz_dhcp_pool_start:
+    type: string
+    description: IP of the dhcp-pool start address.
+    default: 172.16.0.10
+
+  dmz_dhcp_pool_end:
+    type: string
+    description: IP of the dhcp-pool end address.
+    default: 172.16.0.254
+
+  dmz_gateway_ip:
+    type: string
+    description: gateway of the dmz network
+    default: 172.16.0.1
+
+  dmz_router_name:
+    type: string
+    description: Name of the public vrouter.
+    default: dmz_router
+
+  #Secure Network Configuration
+  network_secure_name:
+    type: string
+    description: Name of the secure network
+    default: secure_network
+
+  subnet_secure_name:
+    type: string
+    description: Name of the secure subnetwork.
+    default: secure_subnet
+
+  secure_subnet_cidr:
+    type: string
+    description: CIDR representation of the secure subnet.
+    default: 172.16.1.0/24
+
+  secure_dhcp_pool_start:
+    type: string
+    description: IP of the dhcp-pool start address.
+    default: 172.16.1.10
+
+  secure_dhcp_pool_end:
+    type: string
+    description: IP of the dhcp-pool end address.
+    default: 172.16.1.254
+
+  secure_gateway_ip:
+    type: string
+    description: gateway of the secure network
+    default: 172.16.1.1
+
+  secure_router_name:
+    type: string
+    description: Name of the secure vrouter.
+    default: secure_router
+
+  dmz_secure_connect_router_name:
+    type: string
+    description: Name of the dmz-public connect vrouter.
+    default: dmz_secure_connect_router
+
+  #Management Network Configuration
+  network_mng_name:
+    type: string
+    description: Name of the management network
+    default: mng_network
+
+  subnet_mng_name:
+    type: string
+    description: Name of the management subnetwork.
+    default: management_subnet
+
+  mng_subnet_cidr:
+    type: string
+    description: CIDR representation of the management subnet.
+    default: 192.168.0.0/24
+
+  mng_dhcp_pool_start:
+    type: string
+    description: IP of the dhcp-pool start address.
+    default: 192.168.0.10
+
+  mng_dhcp_pool_end:
+    type: string
+    description: IP of the dhcp-pool end address.
+    default: 192.168.0.254
+
+  mng_router_name:
+    type: string
+    description: Name of the management vrouter.
+    default: management_router
+
+  nameserver_ip1:
+    type: string
+    description: IP of the dns nameserver1.
+    default: 133.162.161.9
+
+  nameserver_ip2:
+    type: string
+    description: IP of the dns nameserver2.
+    default: 133.162.161.10
+
+  #SSL-VPN Configuration
+  sslvpn_network_addr:
+    type: string
+    description: CIDR representation of the SSL-VPN network.
+    default: 192.168.246.0/24
+
+  #Server Setting
+  webserver_dmz_ip:
+    type: string
+    description: IP of the web server(dmz).
+    default: 172.16.0.11
+
+  webserver_mng_ip:
+    type: string
+    description: IP of the web server(management).
+    default: 192.168.0.11
+
+  apserver_secure_ip:
+    type: string
+    description: IP of the AP server(secure).
+    default: 172.16.1.11
+
+  apserver_mng_ip:
+    type: string
+    description: IP of the AP server(management).
+    default: 192.168.0.21
+
+  esserver_secure_ip:
+    type: string
+    description: IP of the ES server(secure).
+    default: 172.16.1.12
+
+  esserver_mng_ip:
+    type: string
+    description: IP of the ES server(management).
+    default: 192.168.0.22
+
+resources:
+
+  #Build network
+  dmz_network:
+    type: OS::Neutron::Net
+    properties:
+      availability_zone: {get_param: availability_zone}
+      name: { get_param: network_dmz_name }
+
+  dmz_subnet:
+    type: OS::Neutron::Subnet
+    properties:
+      availability_zone: { get_param: availability_zone }
+      cidr: { get_param: dmz_subnet_cidr }
+      name: { get_param: subnet_dmz_name }
+      gateway_ip: { get_param: dmz_gateway_ip }
+      network_id: { get_resource: dmz_network }
+      dns_nameservers: [{ get_param: nameserver_ip1 }, { get_param: nameserver_ip2 }]
+      allocation_pools:
+        - start: { get_param: dmz_dhcp_pool_start }
+          end: { get_param: dmz_dhcp_pool_end }
+      enable_dhcp: true
+      host_routes:  [ { "destination" : "172.16.1.0/24", "nexthop" : "172.16.0.2"}]
+
+  dmz_secure_connect_port01:
+   type: OS::Neutron::Port
+   properties:
+      availability_zone: { get_param: availability_zone }
+      network_id: { get_resource: dmz_network }
+      fixed_ips:
+        - ip_address: 172.16.0.2
+
+  dmz_router:
+    type: OS::Neutron::Router
+    properties:
+      availability_zone: { get_param: availability_zone }
+      name: { get_param: dmz_router_name }
+
+  dmz_router_interface:
+    depends_on: dmz_router
+    type: OS::Neutron::RouterInterface
+    properties:
+      router_id: { get_resource: dmz_router }
+      subnet_id: { get_resource: dmz_subnet }
+
+  secure_network:
+    type: OS::Neutron::Net
+    properties:
+      availability_zone: {get_param: availability_zone}
+      name: { get_param: network_secure_name }
+
+  secure_subnet:
+    type: OS::Neutron::Subnet
+    properties:
+      availability_zone: { get_param: availability_zone }
+      cidr: { get_param: secure_subnet_cidr }
+      name: { get_param: subnet_secure_name }
+      gateway_ip: { get_param: secure_gateway_ip }
+      network_id: { get_resource: secure_network }
+      dns_nameservers: [{ get_param: nameserver_ip1 }, { get_param: nameserver_ip2 }]
+      allocation_pools:
+        - start: { get_param: secure_dhcp_pool_start }
+          end: { get_param: secure_dhcp_pool_end }
+      enable_dhcp: true
+      host_routes:  [ { "destination" : "172.16.0.0/24", "nexthop" : "172.16.1.2"}]
+
+  dmz_secure_connect_port02:
+   type: OS::Neutron::Port
+   properties:
+      availability_zone: { get_param: availability_zone }
+      network_id: { get_resource: secure_network }
+      fixed_ips:
+        - ip_address: 172.16.1.2
+
+  secure_router:
+    type: OS::Neutron::Router
+    properties:
+      availability_zone: { get_param: availability_zone }
+      name: { get_param: secure_router_name }
+
+  secure_router_interface:
+    depends_on: secure_router
+    type: OS::Neutron::RouterInterface
+    properties:
+      router_id: { get_resource: secure_router }
+      subnet_id: { get_resource: secure_subnet }
+
+  dmz_secure_connect_router:
+    type: OS::Neutron::Router
+    properties:
+      availability_zone: { get_param: availability_zone }
+      name: { get_param: dmz_secure_connect_router_name }
+
+  dmz_secure_connect_router_interface01:
+    depends_on: dmz_secure_connect_router
+    type: OS::Neutron::RouterInterface
+    properties:
+      router_id: { get_resource: dmz_secure_connect_router }
+      port_id: { get_resource: dmz_secure_connect_port01 }
+
+  dmz_secure_connect_router_interface02:
+    depends_on: dmz_secure_connect_router
+    type: OS::Neutron::RouterInterface
+    properties:
+      router_id: { get_resource: dmz_secure_connect_router }
+      port_id: { get_resource: dmz_secure_connect_port02 }
+
+  mng_network:
+    type: OS::Neutron::Net
+    properties:
+      availability_zone: {get_param: availability_zone}
+      name: { get_param: network_mng_name }
+
+  mng_subnet:
+    type: OS::Neutron::Subnet
+    properties:
+      availability_zone: { get_param: availability_zone }
+      cidr: { get_param: mng_subnet_cidr }
+      name: { get_param: subnet_mng_name }
+      network_id: { get_resource: mng_network }
+      dns_nameservers: [{ get_param: nameserver_ip1 }, { get_param: nameserver_ip2 }]
+      allocation_pools:
+        - start: { get_param: mng_dhcp_pool_start }
+          end: { get_param: mng_dhcp_pool_end }
+      enable_dhcp: true
+
+  mng_router:
+    type: OS::Neutron::Router
+    properties:
+      availability_zone: { get_param: availability_zone }
+      name: { get_param: mng_router_name }
+
+  mng_router_interface:
+    depends_on: dmz_router
+    type: OS::Neutron::RouterInterface
+    properties:
+      router_id: { get_resource: mng_router }
+      subnet_id: { get_resource: mng_subnet }
+
+  #Build FireWall
+  dmz_firewall:
+    type: OS::Neutron::Firewall
+    properties:
+      name: dmz_firewall
+      description: "dmz firewall"
+      firewall_policy_id: {get_resource: dmz_firewall_policy}
+      router_id: { get_resource: dmz_router }
+      availability_zone: {get_param: availability_zone}
+
+  dmz_firewall_policy:
+     type: OS::Neutron::FirewallPolicy
+     properties:
+       name: dmz_firewall_policy
+       audited: true
+       firewall_rules:
+        - {get_resource: dmz_firewall_rule_001}
+        - {get_resource: dmz_firewall_rule_002}
+        - {get_resource: dmz_firewall_rule_003}
+        - {get_resource: dmz_firewall_rule_004}
+        - {get_resource: dmz_firewall_rule_005}
+        - {get_resource: dmz_firewall_rule_006}
+        - {get_resource: dmz_firewall_rule_007}
+        - {get_resource: dmz_firewall_rule_008}
+        - {get_resource: dmz_firewall_rule_009}
+        - {get_resource: dmz_firewall_rule_999}
+
+  dmz_firewall_rule_001:
+    type: OS::Neutron::FirewallRule
+    properties:
+      availability_zone: { get_param: availability_zone }
+      name: "dmz_firewall_rule_001"
+      action: allow
+      description: "allow http from web server"
+      destination_ip_address: "0.0.0.0/0"
+      destination_port: "80"
+      ip_version: "4"
+      protocol: tcp
+      source_ip_address: { get_param: dmz_subnet_cidr}
+      source_port: "1:65535"
+
+  dmz_firewall_rule_002:
+    type: OS::Neutron::FirewallRule
+    properties:
+      availability_zone: { get_param: availability_zone }
+      name: "dmz_firewall_rule_002"
+      action: allow
+      description: "allow https from web server"
+      destination_ip_address: "0.0.0.0/0"
+      destination_port: "443"
+      ip_version: "4"
+      protocol: tcp
+      source_ip_address: { get_param: dmz_subnet_cidr}
+      source_port: "1:65535"
+
+  dmz_firewall_rule_003:
+    type: OS::Neutron::FirewallRule
+    properties:
+      availability_zone: { get_param: availability_zone }
+      name: "dmz_firewall_rule_003"
+      action: allow
+      description: "allow dns from web server"
+      destination_ip_address:  { get_param: nameserver_ip1 }
+      destination_port: "53"
+      ip_version: "4"
+      protocol: tcp
+      source_ip_address: { get_param: dmz_subnet_cidr}
+      source_port: "1:65535"
+
+  dmz_firewall_rule_004:
+    type: OS::Neutron::FirewallRule
+    properties:
+      availability_zone: { get_param: availability_zone }
+      name: "dmz_firewall_rule_004"
+      action: allow
+      description: "allow dns from web server"
+      destination_ip_address:  { get_param: nameserver_ip1 }
+      destination_port: "53"
+      ip_version: "4"
+      protocol: udp
+      source_ip_address: { get_param: dmz_subnet_cidr}
+      source_port: "1:65535"
+
+  dmz_firewall_rule_005:
+    type: OS::Neutron::FirewallRule
+    properties:
+      availability_zone: { get_param: availability_zone }
+      name: "dmz_firewall_rule_005"
+      action: allow
+      description: "allow dns from web server"
+      destination_ip_address:  { get_param: nameserver_ip2 }
+      destination_port: "53"
+      ip_version: "4"
+      protocol: tcp
+      source_ip_address: { get_param: dmz_subnet_cidr}
+      source_port: "1:65535"
+
+  dmz_firewall_rule_006:
+    type: OS::Neutron::FirewallRule
+    properties:
+      availability_zone: { get_param: availability_zone }
+      name: "dmz_firewall_rule_006"
+      action: allow
+      description: "allow dns from web server"
+      destination_ip_address:  { get_param: nameserver_ip2 }
+      destination_port: "53"
+      ip_version: "4"
+      protocol: udp
+      source_ip_address: { get_param: dmz_subnet_cidr}
+      source_port: "1:65535"
+
+  dmz_firewall_rule_007:
+    type: OS::Neutron::FirewallRule
+    properties:
+      availability_zone: { get_param: availability_zone }
+      name: "dmz_firewall_rule_007"
+      action: allow
+      description: "allow ntp from web server"
+      destination_ip_address: "0.0.0.0/0"
+      destination_port: "123"
+      ip_version: "4"
+      protocol: tcp
+      source_ip_address: { get_param: dmz_subnet_cidr}
+      source_port: "1:65535"
+
+  dmz_firewall_rule_008:
+    type: OS::Neutron::FirewallRule
+    properties:
+      availability_zone: { get_param: availability_zone }
+      name: "dmz_firewall_rule_008"
+      action: allow
+      description: "allow ntp from web server"
+      destination_ip_address: "0.0.0.0/0"
+      destination_port: "123"
+      ip_version: "4"
+      protocol: udp
+      source_ip_address: { get_param: dmz_subnet_cidr}
+      source_port: "1:65535"
+
+  dmz_firewall_rule_009:
+    type: OS::Neutron::FirewallRule
+    properties:
+      availability_zone: { get_param: availability_zone }
+      name: "dmz_firewall_rule_009"
+      action: allow
+      description: "allow https to web server"
+      destination_ip_address: { get_param: dmz_subnet_cidr}
+      destination_port: "443"
+      ip_version: "4"
+      protocol: tcp
+      source_ip_address: "0.0.0.0/0"
+      source_port: "1:65535"
+
+  dmz_firewall_rule_999:
+    type: OS::Neutron::FirewallRule
+    properties:
+      availability_zone: { get_param: availability_zone }
+      name: "dmz_firewall_rule_999"
+      action: deny
+      description: "any deny"
+      destination_ip_address: "0.0.0.0/0"
+      ip_version: "4"
+      source_ip_address: "0.0.0.0/0"
+
+  sec_firewall:
+    type: OS::Neutron::Firewall
+    properties:
+      name: secure_firewall
+      description: "secure firewall"
+      firewall_policy_id: {get_resource: sec_firewall_policy}
+      router_id: { get_resource: secure_router }
+      availability_zone: {get_param: availability_zone}
+
+ sec_firewall_policy:
+     type: OS::Neutron::FirewallPolicy
+     properties:
+       name: secure_firewall_policy
+       audited: true
+       firewall_rules:
+        - {get_resource: sec_firewall_rule_001}
+        - {get_resource: sec_firewall_rule_002}
+        - {get_resource: sec_firewall_rule_003}
+        - {get_resource: sec_firewall_rule_004}
+        - {get_resource: sec_firewall_rule_005}
+        - {get_resource: sec_firewall_rule_006}
+        - {get_resource: sec_firewall_rule_007}
+        - {get_resource: sec_firewall_rule_008}
+        - {get_resource: sec_firewall_rule_999}
+
+ sec_firewall_rule_001:
+    type: OS::Neutron::FirewallRule
+    properties:
+      availability_zone: { get_param: availability_zone }
+      name: "sec_firewall_rule_001"
+      action: allow
+      description: "allow http from ap server"
+      destination_ip_address: "0.0.0.0/0"
+      destination_port: "80"
+      ip_version: "4"
+      protocol: tcp
+      source_ip_address: { get_param: secure_subnet_cidr }
+      source_port: "1:65535"
+
+  sec_firewall_rule_002:
+    type: OS::Neutron::FirewallRule
+    properties:
+      availability_zone: { get_param: availability_zone }
+      name: "sec_firewall_rule_002"
+      action: allow
+      description: "allow https from ap server"
+      destination_ip_address: "0.0.0.0/0"
+      destination_port: "443"
+      ip_version: "4"
+      protocol: tcp
+      source_ip_address: { get_param: secure_subnet_cidr }
+      source_port: "1:65535"
+
+  sec_firewall_rule_003:
+    type: OS::Neutron::FirewallRule
+    properties:
+      availability_zone: { get_param: availability_zone }
+      name: "sec_firewall_rule_003"
+      action: allow
+      description: "allow dns from ap server"
+      destination_ip_address:  { get_param: nameserver_ip1 }
+      destination_port: "53"
+      ip_version: "4"
+      protocol: tcp
+      source_ip_address: { get_param: secure_subnet_cidr }
+      source_port: "1:65535"
+
+  sec_firewall_rule_004:
+    type: OS::Neutron::FirewallRule
+    properties:
+      availability_zone: { get_param: availability_zone }
+      name: "sec_firewall_rule_004"
+      action: allow
+      description: "allow dns from ap server"
+      destination_ip_address:  { get_param: nameserver_ip1 }
+      destination_port: "53"
+      ip_version: "4"
+      protocol: udp
+      source_ip_address: { get_param: secure_subnet_cidr }
+      source_port: "1:65535"
+
+  sec_firewall_rule_005:
+    type: OS::Neutron::FirewallRule
+    properties:
+      availability_zone: { get_param: availability_zone }
+      name: "sec_firewall_rule_005"
+      action: allow
+      description: "allow dns from ap server"
+      destination_ip_address:  { get_param: nameserver_ip2 }
+      destination_port: "53"
+      ip_version: "4"
+      protocol: tcp
+      source_ip_address: { get_param: secure_subnet_cidr }
+      source_port: "1:65535"
+
+  sec_firewall_rule_006:
+    type: OS::Neutron::FirewallRule
+    properties:
+      availability_zone: { get_param: availability_zone }
+      name: "sec_firewall_rule_006"
+      action: allow
+      description: "allow dns from ap server"
+      destination_ip_address:  { get_param: nameserver_ip2 }
+      destination_port: "53"
+      ip_version: "4"
+      protocol: udp
+      source_ip_address: { get_param: secure_subnet_cidr }
+      source_port: "1:65535"
+
+  sec_firewall_rule_007:
+    type: OS::Neutron::FirewallRule
+    properties:
+      availability_zone: { get_param: availability_zone }
+      name: "sec_firewall_rule_007"
+      action: allow
+      description: "allow ntp from ap server"
+      destination_ip_address: "0.0.0.0/0"
+      destination_port: "123"
+      ip_version: "4"
+      protocol: tcp
+      source_ip_address: { get_param: secure_subnet_cidr }
+      source_port: "1:65535"
+
+  sec_firewall_rule_008:
+    type: OS::Neutron::FirewallRule
+    properties:
+      availability_zone: { get_param: availability_zone }
+      name: "sec_firewall_rule_008"
+      action: allow
+      description: "allow ntp from ap server"
+      destination_ip_address: "0.0.0.0/0"
+      destination_port: "123"
+      ip_version: "4"
+      protocol: udp
+      source_ip_address: { get_param: secure_subnet_cidr }
+      source_port: "1:65535"
+
+  sec_firewall_rule_999:
+    type: OS::Neutron::FirewallRule
+    properties:
+      availability_zone: { get_param: availability_zone }
+      name: "sec_firewall_rule_999"
+      action: deny
+      description: "any deny"
+      destination_ip_address: "0.0.0.0/0"
+      ip_version: "4"
+      source_ip_address: "0.0.0.0/0"
+
+  dmz_secure_firewall:
+    type: OS::Neutron::Firewall
+    properties:
+      name: dmz_secure_firewall
+      description: "dmz-secure firewall"
+      firewall_policy_id: {get_resource: dmz_secure_firewall_policy }
+      router_id: { get_resource: dmz_secure_connect_router }
+      availability_zone: {get_param: availability_zone}
+
+  dmz_secure_firewall_policy:
+     type: OS::Neutron::FirewallPolicy
+     properties:
+       name: dmz_secure_firewall_policy
+       audited: true
+       firewall_rules:
+        - {get_resource: dmz_secure_firewall_rule_001}
+        - {get_resource: dmz_secure_firewall_rule_002}
+        - {get_resource: dmz_secure_firewall_rule_003}
+        - {get_resource: dmz_secure_firewall_rule_004}
+        - {get_resource: dmz_secure_firewall_rule_005}
+        - {get_resource: dmz_secure_firewall_rule_006}
+        - {get_resource: dmz_secure_firewall_rule_999}
+
+  dmz_secure_firewall_rule_001:
+    type: OS::Neutron::FirewallRule
+    properties:
+      availability_zone: { get_param: availability_zone }
+      name: "dmz_secure_firewall_rule_001"
+      action: allow
+      description: "allow tcp from dmz network"
+      destination_ip_address: { get_param: secure_subnet_cidr }
+      destination_port: "1:65535"
+      ip_version: "4"
+      protocol: tcp
+      source_ip_address: { get_param: dmz_subnet_cidr }
+      source_port: "1:65535"
+
+  dmz_secure_firewall_rule_002:
+    type: OS::Neutron::FirewallRule
+    properties:
+      availability_zone: { get_param: availability_zone }
+      name: "dmz_secure_firewall_rule_002"
+      action: allow
+      description: "allow udp from dmz network"
+      destination_ip_address: { get_param: secure_subnet_cidr }
+      destination_port: "1:65535"
+      ip_version: "4"
+      protocol: udp
+      source_ip_address: { get_param: dmz_subnet_cidr }
+      source_port: "1:65535"
+
+  dmz_secure_firewall_rule_003:
+    type: OS::Neutron::FirewallRule
+    properties:
+      availability_zone: { get_param: availability_zone }
+      name: "dmz_secure_firewall_rule_003"
+      action: allow
+      description: "allow icmp from dmz network"
+      destination_ip_address: { get_param: secure_subnet_cidr }
+      ip_version: "4"
+      protocol: icmp
+      source_ip_address: { get_param: dmz_subnet_cidr }
+
+  dmz_secure_firewall_rule_004:
+    type: OS::Neutron::FirewallRule
+    properties:
+      availability_zone: { get_param: availability_zone }
+      name: "dmz_secure_firewall_rule_004"
+      action: allow
+      description: "allow tcp from secure network"
+      destination_ip_address: { get_param: dmz_subnet_cidr }
+      destination_port: "1:65535"
+      ip_version: "4"
+      protocol: tcp
+      source_ip_address: { get_param: secure_subnet_cidr }
+      source_port: "1:65535"
+
+  dmz_secure_firewall_rule_005:
+    type: OS::Neutron::FirewallRule
+    properties:
+      availability_zone: { get_param: availability_zone }
+      name: "dmz_secure_firewall_rule_005"
+      action: allow
+      description: "allow udp from secure network"
+      destination_ip_address: { get_param: dmz_subnet_cidr }
+      destination_port: "1:65535"
+      ip_version: "4"
+      protocol: udp
+      source_ip_address: { get_param: secure_subnet_cidr }
+      source_port: "1:65535"
+
+  dmz_secure_firewall_rule_006:
+    type: OS::Neutron::FirewallRule
+    properties:
+      availability_zone: { get_param: availability_zone }
+      name: "dmz_secure_firewall_rule_006"
+      action: allow
+      description: "allow icmp from secure network"
+      destination_ip_address: { get_param: dmz_subnet_cidr }
+      ip_version: "4"
+      protocol: icmp
+      source_ip_address: { get_param: secure_subnet_cidr }
+
+  dmz_secure_firewall_rule_999:
+    type: OS::Neutron::FirewallRule
+    properties:
+      availability_zone: { get_param: availability_zone }
+      name: "dmz_secure_firewall_rule_999"
+      action: deny
+      description: "any deny"
+      destination_ip_address: "0.0.0.0/0"
+      ip_version: "4"
+      source_ip_address: "0.0.0.0/0"
+
+ mng_firewall:
+    type: OS::Neutron::Firewall
+    properties:
+      name: management_firewall
+      description: "management firewall"
+      firewall_policy_id: {get_resource: mng_firewall_policy}
+      router_id: { get_resource: mng_router }
+      availability_zone: {get_param: availability_zone}
+
+  mng_firewall_policy:
+     type: OS::Neutron::FirewallPolicy
+     properties:
+       name: management_firewall_policy
+       audited: true
+       firewall_rules:
+        - {get_resource: mng_firewall_rule_001}
+        - {get_resource: mng_firewall_rule_002}
+        - {get_resource: mng_firewall_rule_003}
+        - {get_resource: mng_firewall_rule_999}
+
+  mng_firewall_rule_001:
+    type: OS::Neutron::FirewallRule
+    properties:
+      availability_zone: { get_param: availability_zone }
+      name: "management_firewall_rule_001"
+      action: allow
+      description: "allow ssh from SSL-VPN network"
+      destination_ip_address: { get_param: mng_subnet_cidr }
+      destination_port: "1:65535"
+      ip_version: "4"
+      protocol: tcp
+      source_ip_address: { get_param: sslvpn_network_addr }
+      source_port: "1:65535"
+
+  mng_firewall_rule_002:
+    type: OS::Neutron::FirewallRule
+    properties:
+      availability_zone: { get_param: availability_zone }
+      name: "management_firewall_rule_002"
+      action: allow
+      description: "allow udp from SSL-VPN network"
+      destination_ip_address: { get_param: mng_subnet_cidr }
+      destination_port: "1:65535"
+      ip_version: "4"
+      protocol: udp
+      source_ip_address: { get_param: sslvpn_network_addr }
+      source_port: "1:65535"
+
+  mng_firewall_rule_003:
+    type: OS::Neutron::FirewallRule
+    properties:
+      availability_zone: { get_param: availability_zone }
+      name: "management_firewall_rule_003"
+      action: allow
+      description: "allow icmp from SSL-VPN network"
+      destination_ip_address: { get_param: mng_subnet_cidr }
+      ip_version: "4"
+      protocol: icmp
+      source_ip_address: { get_param: sslvpn_network_addr }
+
+  mng_firewall_rule_999:
+    type: OS::Neutron::FirewallRule
+    properties:
+      availability_zone: { get_param: availability_zone }
+      name: "management_firewall_rule_999"
+      action: deny
+      description: "any deny"
+      destination_ip_address: "0.0.0.0/0"
+      ip_version: "4"
+      source_ip_address: "0.0.0.0/0"
+
+outputs:
+  dmz_network_id:
+    description: dmz_network
+    value:  { get_resource: dmz_network }
+
+  secure_network_id:
+    description: dmz_network
+    value:  { get_resource: secure_network }
+
+  mng_network_id:
+    description: dmz_network
+    value:  { get_resource: mng_network }
+
+  mng_router_id:
+    description: dmz_network
+    value:  { get_resource: mng_router }
