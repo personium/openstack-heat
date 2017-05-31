@@ -1,36 +1,36 @@
-# HeatTemplate for creating Personium 3server unit
+# Personium 3serverユニット作成用HeatTemplate
 
-## Overview
-This HeatTemplate automatically constructs the network and server configuration for Personium 3 Server unit in OpenStack.
+## 概要
+このHeatTemplateは、OpenStackでPersonium 3Serverユニット用のネットワークおよびサーバ構成を自動構築するものです。
 
-#### Precondition
- * The operation confirmation is done by FUJITSU Cloud Service K5 of OpenStack base IaaS.
- * The network connecting to the Internet and the SSL-VPN connection for server access are excluded from the creation of this HeatTemplate.
- * Operation confirmation is done with CentOS 7.2.
+#### 前提条件
+ * 動作確認はOpenStackベースIaaSの FUJITSU Cloud Service K5 で行っています。
+ * インターネットに接続するネットワーク、サーバアクセス用SSL-VPN接続はこのHeatTemplateの作成対象外です。
+ * CentOS 7.2で動作確認を行っています。
 
-## Construction environment
-The configuration that can be created with this HeatTemplate is shown below.
+## 構築環境
+このHeatTemplateで作成できる構成を以下に示します。  
 
 <img src="3-server_heat.jpg" title="3-server_heat" style="width:70%;height:auto;">  
 
-## File structure
+## ファイル構成
 | File name | Contents |
 |:---:|:---:|
-| 01_personium_network.yaml  |Create networks and firewalls.|
-| 02_personium_security_group.yaml   |Create security group|
-| 03_personium_3server.yaml   |Create servers for Personium.|
+| 01_personium_network.yaml  |ネットワークおよびファイアウォールの作成を行います。|
+| 02_personium_security_group.yaml   |セキュリティグループを作成します。|
+| 03_personium_3server.yaml   |Personium用のサーバ群を作成します。|
 
 
-## Flow of creation
-I will explain the flow of creation using this HeatTemplate.
+## 作成の流れ
+このHeatTemplateを使用した作成の流れについて説明します。
 
-### 1: Create Keypair (Manual)
-Create a KeyPair to log in to the server for Personium.
+### 1: Keypairの作成
+Personium用のサーバにログインするためのKeyPairを作成します。
 
-### 2: Preparation for network creation
-Edit 01_personium_network.yaml.
+### 2:ネットワーク作成準備
+01_personium_network.yamlを編集します。
 
- *  Set the Availability Zone used for the default of availability_zone in the Parameters section.
+ *  Parametersセクションのavailability_zoneのdefaultに、使用しているアベイラビリティゾーンを設定します。
 ```
   availability_zone:
     type: string
@@ -38,19 +38,19 @@ Edit 01_personium_network.yaml.
     default: { Availability zone } # set Availability zone
 ```
 
-### 3: Create network
-Use 01_personium_network.yaml to create the network.
+### 3: ネットワークの作成
+01_personium_network.yamlを使用して、ネットワークを作成します。  
 
-### 4: Connect with external network
-Connect DMZ network, Secure network, Management network to external network.
+### 4: 外部ネットワークとの接続
+DMZネットワーク、Secureネットワーク、Managementネットワークを外部ネットワークと接続します。
 
-### 5: Create security group
-Use 02_personium_security_group.yaml to create a security group.
+### 5: セキュリティグループの作成
+02_personium_security_group.yamlを使用して、セキュリティグループを作成します。
 
-### 6: Preparation for server creation
-Edit 03_personium_3server.yaml.
+### 6: サーバ作成準備
+03_personium_3server.yamlを編集します。   
 
- *  Set the availability zone you are using to the default of availability_zone in the Parameters section.
+ *  使用しているアベイラビリティゾーンをParametersセクションのavailability_zoneのdefaultに設定します。
 ```
   availability_zone:
     type: string
@@ -58,16 +58,16 @@ Edit 03_personium_3server.yaml.
     default: { Availability zone } # set Availability zone
 ```
 
- *  Network ID setting  
-Obtain the ID of the created network, and in the Parameters section Set to default of dmz_network_id, secure_network_id, mng_network_id.  
+ *  ネットワークID設定  
+作成されたネットワークのIDを取得して、Parametersセクションのdmz_network_id、secure_network_id、mng_network_idのdefaultに設定します。
 ```
 dmz_network_id:
   type: string
   description: ID of the dmz network.
   default: { dmz_network_id } #set dmz network id.
 ```
-```  
-  secure_network_id:
+```
+secure_network_id:
   type: string
   description: ID of the secure network.
   default: { secure_network_id } #set secure network id.
@@ -78,9 +78,8 @@ mng_network_id:
   description: ID of the management network.
   default: { management_network_id } #set management network id.
 ```
-
- *  Security group setting
-Obtain the ID of the created security group, and in the Parameters section Set to default of dmz_secgroup_id, secure_secgroup_id, mng_secgroup_id.
+*  セキュリティグループ設定  
+作成されたセキュリティグループのIDを取得して、Parametersセクションのdmz_secgroup_id、secure_secgroup_id、mng_secgroup_idのdefaultに設定します。
 ```
 dmz_secgroup_id:
   type: string
@@ -99,37 +98,36 @@ mng_secgroup_id:
   description: Security group name of management network
   default: { mng_secgroup_id } #set management security group ID.
 ```
-
- *  KeyPair setting
-Obtain the name of the created KeyPair and in the Parameters section
-Set to web_server_key_name, ap_server_key_name, es_server_key_name default.
+ *  KeyPair設定  
+作成したKeyPairの名前を取得して、Parametersセクションの  
+web_server_key_name、ap_server_key_name、es_server_key_nameのdefaultに設定します。
 ```
 web_server_key_name:
   type: string
   description: Name of web server key.
-  default: { your_server_keyname } #set server KeyPair name.
+  default: { your_server_keyname } #set server key name.
 ```
 ```
 ap_server_key_name:
   type: string
   description: Name of ap server key.
-  default: { your_server_keyname } #set server KeyPair name.
+  default: { your_server_keyname } #set server key name.
 ```
 ```
 es_server_key_name:
   type: string
   description: Name of es server key.
-  default: { your_server_keyname } #set server KeyPair name.
+  default: { your_server_keyname } #set server key name.
 ```
 
- *  Certificate setting
-Edit the user_data of the web_server in the resources section according to the certificate you are creating.
+ *  証明書設定  
+resourcesセクションのweb_serverのuser_dataを作成する証明書に合わせて編集します。
 ```
   web_server:
     type: OS::Nova::Server
     properties:
 
-        --Omission--
+        --中略--
 
     user_data_format: RAW
     user_data:
@@ -137,7 +135,7 @@ Edit the user_data of the web_server in the resources section according to the c
         template: |
           #!/bin/bash -v
 
-    　　--Omission--
+    　　--中略--
 
           openssl genrsa 2048 > /root/ansible/resource/web/opt/nginx/conf/server.key
           openssl req -new -key /root/ansible/resource/web/opt/nginx/conf/server.key << EOF > /root/ansible/resource/web/opt/nginx/conf/server.csr
@@ -169,9 +167,9 @@ Edit the user_data of the web_server in the resources section according to the c
           openssl x509 -req -days 3650 -signkey /root/ansible/resource/ap/opt/x509/unit.key -out /root/ansible/resource/ap/opt/x509/unit-self-sign.crt < /root/ansible/resource/ap/opt/x509/unit.csr
 ```
 
-### 7: Create SSL-VPN (Manual)
-Create an SSL-VPN connection to the Management network.
+### 7: SSL-VPN作成（手動）
+ManagementネットワークにSSL-VPN接続を作成します。
 
-### 8: Setup Personium
-Follow the steps below to set up Personium.
+### 8: Personiumセットアップ
+以下の手順を参照して、Personiumのセットアップを行います。  
 [ansible/3-server_unit](https://github.com/personium/ansible/tree/master/3-server_unit "3-server_unit")

@@ -1,0 +1,269 @@
+heat_template_version: 2013-05-23
+description: Create Security Group For Personium system.
+
+parameters:
+  #AZ定義
+  availability_zone:
+    type: string
+    description: Availability zone
+    default: jp-west-1a
+
+  #Security Group Configuration
+  dmz_subnet_cidr:
+    type: string
+    description: CIDR representation of the dmz subnet.
+    default: 172.16.0.0/24
+
+  secure_subnet_cidr:
+    type: string
+    description: CIDR representation of the secure subnet.
+    default: 172.16.1.0/24
+
+  mng_subnet_cidr:
+    type: string
+    description: CIDR representation of the management subnet.
+    default: 192.168.0.0/24
+
+  ssl_subnet_cidr:
+    type: string
+    description: CIDR representation of the ssl-vpn subnet.
+    default: 192.168.246.0/24
+
+  dmz_secgroup_para:
+    type: string
+    description: Security group name of dmz network.
+    default: dmz_security_group
+
+  secure_secgroup_para:
+    type: string
+    description: SSecurity group name of secure network
+    default: secure_security_group
+
+  management_secgroup_para:
+    type: string
+    description: Security group name of management network
+    default: management_security_group
+
+resources:
+
+  #Build Security Group
+  dmz_secgroup:
+    type: OS::Neutron::SecurityGroup
+    properties:
+      availability_zone: { get_param: availability_zone }
+      name: { get_param: dmz_secgroup_para }
+      description: >
+        SecurityGroup to attach VM
+        Allow connections (icmp and tcp443) from Remote & PrivateIP
+      rules: [
+        {
+         #1 egress: TCP/1-65535/any
+         remote_ip_prefix: 0.0.0.0/0,
+         direction: egress,
+         protocol: tcp,
+         port_range_min: 1,
+         port_range_max: 65535},
+        {
+         #2 egress: UDP/1-65535/any
+         remote_ip_prefix: 0.0.0.0/0,
+         direction: egress,
+         protocol: udp,
+         port_range_min: 1,
+         port_range_max: 65535},
+        {
+         #3 egress: ICMP/any
+         remote_ip_prefix: 0.0.0.0/0,
+         direction: egress,
+         protocol: icmp},
+        {
+         #4 ingress: TCP/local network
+         remote_ip_prefix: { get_param: dmz_subnet_cidr },
+         direction: ingress,
+         protocol: tcp,
+         port_range_min: 1,
+         port_range_max: 65535},
+        {
+         #5 ingress: UDP/local network
+         remote_ip_prefix: { get_param: dmz_subnet_cidr },
+         direction: ingress,
+         protocol: udp,
+         port_range_min: 1,
+         port_range_max: 65535},
+        {
+         #6 ingress: ICMP/local network
+         remote_ip_prefix: { get_param: dmz_subnet_cidr },
+         direction: ingress,
+         protocol: icmp},
+        {
+         #7 ingress: TCP/secure network
+         remote_ip_prefix: { get_param: secure_subnet_cidr },
+         direction: ingress,
+         protocol: tcp,
+         port_range_min: 1,
+         port_range_max: 65535},
+        {
+         #8 ingress: UDP/secure network
+         remote_ip_prefix: { get_param: secure_subnet_cidr },
+         direction: ingress,
+         protocol: udp,
+         port_range_min: 1,
+         port_range_max: 65535},
+        {
+         #9 ingress: ICMP/secure network
+         remote_ip_prefix: { get_param: secure_subnet_cidr },
+         direction: ingress,
+         protocol: icmp},
+        {
+         #10 ingress: TCP/443/any
+         remote_ip_prefix: 0.0.0.0/0,
+         direction: ingress,
+         protocol: tcp,
+         port_range_min: 443,
+         port_range_max: 443} ]
+
+  secure_secgroup:
+    type: OS::Neutron::SecurityGroup
+    properties:
+      availability_zone: { get_param: availability_zone }
+      name: { get_param: secure_secgroup_para }
+      description: >
+        SecurityGroup to attach VM
+        Allow connections from PrivateIP
+      rules: [
+        {
+         #1 egress: TCP/1-65535/any
+         remote_ip_prefix: 0.0.0.0/0,
+         direction: egress,
+         protocol: tcp,
+         port_range_min: 1,
+         port_range_max: 65535},
+        {
+         #2 egress: UDP/1-65535/any
+         remote_ip_prefix: 0.0.0.0/0,
+         direction: egress,
+         protocol: udp,
+         port_range_min: 1,
+         port_range_max: 65535},
+        {
+         #3 egress: ICMP/any
+         remote_ip_prefix: 0.0.0.0/0,
+         direction: egress,
+         protocol: icmp},
+        {
+         #4 ingress: TCP/dmz network
+         remote_ip_prefix: { get_param: dmz_subnet_cidr },
+         direction: ingress,
+         protocol: tcp,
+         port_range_min: 1,
+         port_range_max: 65535},
+        {
+         #5 ingress: UDP/dmz network
+         remote_ip_prefix: { get_param: dmz_subnet_cidr },
+         direction: ingress,
+         protocol: udp,
+         port_range_min: 1,
+         port_range_max: 65535},
+        {
+         #6 ingress: ICMP/dmz network
+         remote_ip_prefix: { get_param: dmz_subnet_cidr },
+         direction: ingress,
+         protocol: icmp},
+        {
+         #7 ingress: TCP/local network
+         remote_ip_prefix: { get_param: secure_subnet_cidr },
+         direction: ingress,
+         protocol: tcp,
+         port_range_min: 1,
+         port_range_max: 65535},
+        {
+         #8 ingress: UDP/local network
+         remote_ip_prefix: { get_param: secure_subnet_cidr },
+         direction: ingress,
+         protocol: udp,
+         port_range_min: 1,
+         port_range_max: 65535},
+        {
+         #9 ingress: ICMP/local network
+         remote_ip_prefix: { get_param: secure_subnet_cidr },
+         direction: ingress,
+         protocol: icmp} ]
+
+  management_secgroup:
+    type: OS::Neutron::SecurityGroup
+    properties:
+      availability_zone: { get_param: availability_zone }
+      name: { get_param: management_secgroup_para }
+      description: >
+        SecurityGroup to attach VM
+        Allow connections from PrivateIP
+      rules: [
+        {
+         #1 egress: TCP/1-65535/any
+         remote_ip_prefix: 0.0.0.0/0,
+         direction: egress,
+         protocol: tcp,
+         port_range_min: 1,
+         port_range_max: 65535},
+        {
+         #2 egress: UDP/1-65535/any
+         remote_ip_prefix: 0.0.0.0/0,
+         direction: egress,
+         protocol: udp,
+         port_range_min: 1,
+         port_range_max: 65535},
+        {
+         #3 egress: ICMP/RemoteIP
+         remote_ip_prefix: 0.0.0.0/0,
+         direction: egress,
+         protocol: icmp},
+        {
+         #4 ingress: TCP/local network
+         remote_ip_prefix: { get_param: mng_subnet_cidr },
+         direction: ingress,
+         protocol: TCP,
+         port_range_min: 1,
+         port_range_max: 65535},
+        {
+         #5 ingress: TCP/local network
+         remote_ip_prefix: { get_param: mng_subnet_cidr },
+         direction: ingress,
+         protocol: UDP,
+         port_range_min: 1,
+         port_range_max: 65535},
+        {
+         #6 ingress: ICMP/local network
+         remote_ip_prefix: { get_param: mng_subnet_cidr },
+         direction: ingress,
+         protocol: icmp},
+        {
+         #7 ingress: TCP/ssl-vpn network
+         remote_ip_prefix: { get_param: ssl_subnet_cidr },
+         direction: ingress,
+         protocol: TCP,
+         port_range_min: 1,
+         port_range_max: 65535},
+        {
+         #8 ingress: TCP/ssl-vpn network
+         remote_ip_prefix: { get_param: ssl_subnet_cidr },
+         direction: ingress,
+         protocol: UDP,
+         port_range_min: 1,
+         port_range_max: 65535},
+        {
+         #9 ingress: ICMP/ssl-vpn network
+         remote_ip_prefix: { get_param: ssl_subnet_cidr },
+         direction: ingress,
+         protocol: icmp} ]
+
+outputs:
+  dmz_secgroup_id:
+    description: dmz security group id
+    value:  { get_resource: dmz_secgroup }
+
+  secure_secgroup_id:
+    description: secure network security group id
+    value:  { get_resource: secure_secgroup }
+
+  mng_secgroup_id:
+    description: management network security group
+    value:  { get_resource: management_secgroup }

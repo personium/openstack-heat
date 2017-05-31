@@ -1,0 +1,392 @@
+heat_template_version: 2013-05-23
+description: Create Personium system.
+
+parameters:
+  #AZ定義
+  availability_zone:
+    type: string
+    description: Availability zone
+    default: { Availability zone } # set Availability zone
+
+  #Network Configuration
+  webserver_dmz_ip:
+    type: string
+    description: IP of the web server.
+    default: 172.16.0.11
+
+  webserver_mng_ip:
+    type: string
+    description: IP of the web server.
+    default: 192.168.0.11
+
+  apserver_secure_ip:
+    type: string
+    description: IP of the AP server.
+    default: 172.16.1.11
+
+  apserver_mng_ip:
+    type: string
+    description: IP of the AP server.
+    default: 192.168.0.21
+
+  esserver_secure_ip:
+    type: string
+    description: IP of the ES server.
+    default: 172.16.1.12
+
+  esserver_mng_ip:
+    type: string
+    description: IP of the ES server.
+    default: 192.168.0.22
+
+  dmz_network_id:
+    type: string
+    description: ID of the dmz network.
+    default: { dmz_network_id } #set dmz network id.
+
+  secure_network_id:
+    type: string
+    description: ID of the secure network.
+    default: { secure_network_id } #set secure network id.
+
+  mng_network_id:
+    type: string
+    description: ID of the management network.
+    default: { management_network_id } #set management network id.
+
+  #Security Group Configuration
+  dmz_subnet_cidr:
+    type: string
+    description: CIDR representation of the dmz subnet.
+    default: 172.16.0.0/24
+
+  secure_subnet_cidr:
+    type: string
+    description: CIDR representation of the secure subnet.
+    default: 172.16.1.0/24
+
+  mng_subnet_cidr:
+    type: string
+    description: CIDR representation of the management subnet.
+    default: 192.168.0.0/24
+
+  ssl_subnet_cidr:
+    type: string
+    description: CIDR representation of the ssl-vpn subnet.
+    default: 192.168.246.0/24
+
+  dmz_secgroup_id:
+    type: string
+    description: Security group name of dmz network.
+    default: { dmz_secgroup_id } #set DMZ security group ID.
+
+  secure_secgroup_id:
+    type: string
+    description: SSecurity group name of secure network
+    default: { secure_secgroup_id } #set secure security group ID.
+
+  mng_secgroup_id:
+    type: string
+    description: Security group name of management network
+    default: { mng_secgroup_id } #set management security group ID.
+
+  #Server Configuration
+  os_image_name:
+    type: string
+    description: Name of image.
+    default: {os_image_name} #set OS Image name.
+
+  web_server_key_name:
+    type: string
+    description: Name of web server key.
+    default: { your_server_keyname } #set server key name.
+
+  ap_server_key_name:
+    type: string
+    description: Name of ap server key.
+    default: { your_server_keyname } #set server key name.
+
+  es_server_key_name:
+    type: string
+    description: Name of es server key.
+    default: { your_server_keyname } #set server key name.
+
+resources:
+
+  #Build Network Port
+  webserver_port:
+   type: OS::Neutron::Port
+   properties:
+      availability_zone: { get_param: availability_zone }
+      network_id: { get_param: dmz_network_id }
+      fixed_ips:
+        - ip_address: { get_param: webserver_dmz_ip }
+      security_groups:
+        - { get_param: dmz_secgroup_id }
+
+  apserver_port:
+   type: OS::Neutron::Port
+   properties:
+      availability_zone: { get_param: availability_zone }
+      network_id: { get_param: secure_network_id }
+      fixed_ips:
+        - ip_address: { get_param: apserver_secure_ip }
+      security_groups:
+        - { get_param: secure_secgroup_id }
+
+  esserver_port:
+   type: OS::Neutron::Port
+   properties:
+      availability_zone: { get_param: availability_zone }
+      network_id: { get_param: secure_network_id }
+      fixed_ips:
+        - ip_address: { get_param: esserver_secure_ip }
+      security_groups:
+        - { get_param: secure_secgroup_id }
+
+  webserver_mng_port:
+   type: OS::Neutron::Port
+   properties:
+      availability_zone: { get_param: availability_zone }
+      network_id: { get_param: mng_network_id }
+      fixed_ips:
+        - ip_address: { get_param: webserver_mng_ip }
+      security_groups:
+        - { get_param: mng_secgroup_id }
+
+  apserver_mng_port:
+   type: OS::Neutron::Port
+   properties:
+      availability_zone: { get_param: availability_zone }
+      network_id: { get_param: mng_network_id }
+      fixed_ips:
+        - ip_address: { get_param: apserver_mng_ip }
+      security_groups:
+        - { get_param: mng_secgroup_id }
+
+  esserver_mng_port:
+   type: OS::Neutron::Port
+   properties:
+      availability_zone: { get_param: availability_zone }
+      network_id: { get_param: mng_network_id }
+      fixed_ips:
+        - ip_address: { get_param: esserver_mng_ip }
+      security_groups:
+        - { get_param: mng_secgroup_id }
+
+  #Build Server
+  web_server:
+    type: OS::Nova::Server
+    properties:
+      availability_zone: {get_param: availability_zone}
+      block_device_mapping:
+      - volume_id: {get_resource: web_server_volume}
+        device_name: vda
+      diskConfig: MANUAL
+      flavor: 'S-1'
+      key_name: { get_param: web_server_key_name}
+      name: demo_web_server
+      networks:
+      - port: { get_resource: webserver_port }
+      - port: { get_resource: webserver_mng_port}
+      user_data_format: RAW
+      user_data:
+        str_replace:
+          template: |
+            #!/bin/bash -v
+
+            ssh-keygen -f /root/.ssh/id_rsa -t rsa -N ""
+            cat /root/.ssh/id_rsa.pub >> /root/.ssh/authorized_keys
+
+            nmcli connection modify "Wired connection 1" ipv4.method manual
+            nmcli connection modify "Wired connection 1" ipv4.addresses "web_ip_address1/24"
+            nmcli connection modify "Wired connection 1" ipv4.gateway ""
+            nmcli connection modify "Wired connection 1" ipv4.routes "192.168.0.0/16 192.168.0.1"
+            nmcli connection modify "Wired connection 1" ipv4.never-default yes
+            ip route del default via 192.168.0.1
+
+            systemctl restart NetworkManager
+            systemctl restart network
+            nmcli connection down "Wired connection 1"
+            nmcli connection up "Wired connection 1"
+
+            yum install epel-release -y
+            gpg --import /etc/pki/rpm-gpg/RPM-GPG-KEY-EPEL-7
+            yum install -y git
+            yum install -y ansible
+
+            git clone https://github.com/personium/ansible /tmp/ansible
+            mv /tmp/ansible/3-server_unit /root/
+            mv /root/3-server_unit /root/ansible
+
+            openssl genrsa 2048 > /root/ansible/resource/web/opt/nginx/conf/server.key
+            openssl req -new -key /root/ansible/resource/web/opt/nginx/conf/server.key << EOF > /root/ansible/resource/web/opt/nginx/conf/server.csr
+            { Country Name } # set country name
+            { State or Province Name } # set state name
+            { Locality Name } # set locality name
+            { Organization Name } # set oganization name
+            { Organizational Unit Name } # set oganization unit name
+            { Common Name } # set common name
+            { Email Address } # set mail address
+            { A challenge password } # set password
+            { An optional company name } # set company name
+            EOF
+            openssl x509 -days 3650 -req -signkey /root/ansible/resource/web/opt/nginx/conf/server.key < /root/ansible/resource/web/opt/nginx/conf/server.csr > /root/ansible/resource/web/opt/nginx/conf/server.crt
+
+
+            openssl genrsa -out /root/ansible/resource/ap/opt/x509/unit.key 2048 -outform DER
+            openssl req -new -key /root/ansible/resource/ap/opt/x509/unit.key -out /root/ansible/resource/ap/opt/x509/unit.csr << EOF
+            { Country Name } # set country name
+            { State or Province Name } # set state name
+            { Locality Name } # set locality name
+            { Organization Name } # set oganization name
+            { Organizational Unit Name } # set oganization unit name
+            { Common Name } # set common name
+            { Email Address } # set mail address
+            { A challenge password } # set password
+            { An optional company name } # set company name
+            EOF
+
+            openssl x509 -req -days 3650 -signkey /root/ansible/resource/ap/opt/x509/unit.key -out /root/ansible/resource/ap/opt/x509/unit-self-sign.crt < /root/ansible/resource/ap/opt/x509/unit.csr
+
+
+          params:
+            web_ip_address1:  { get_param: webserver_mng_ip }
+
+  web_server_volume:
+    type: OS::Cinder::Volume
+    properties:
+      availability_zone: {get_param: availability_zone}
+      description: 'web server volume'
+      name: web_server_sysvol
+      size: 30
+      volume_type: 'M1'
+      image: {get_param: os_image_name}
+
+  ap_server:
+    type: OS::Nova::Server
+    properties:
+      availability_zone: {get_param: availability_zone}
+      block_device_mapping:
+      - volume_id: {get_resource: ap_server_volume}
+        device_name: vda
+      - volume_id: {get_resource: ap_server_piolog_volume}
+        device_name: vdb
+      - volume_id: {get_resource: ap_server_webdav_volume}
+        device_name: vdc
+      diskConfig: MANUAL
+      flavor: 'S-2'
+      key_name: { get_param: ap_server_key_name}
+      name: demo_ap_server
+      networks:
+      - port: { get_resource: apserver_port }
+      - port: { get_resource: apserver_mng_port}
+      user_data_format: RAW
+      user_data:
+        str_replace:
+          template: |
+            #!/bin/bash -v
+            nmcli connection modify "Wired connection 1" ipv4.method manual
+            nmcli connection modify "Wired connection 1" ipv4.addresses "ap_ip_address1/24"
+            nmcli connection modify "Wired connection 1" ipv4.gateway ""
+            nmcli connection modify "Wired connection 1" ipv4.routes "192.168.0.0/16 192.168.0.1"
+            nmcli connection modify "Wired connection 1" ipv4.never-default yes
+            ip route del default via 192.168.0.1
+
+            systemctl restart NetworkManager
+            systemctl restart network
+            nmcli connection down "Wired connection 1"
+            nmcli connection up "Wired connection 1"
+
+            yum install epel-release -y
+            gpg --import /etc/pki/rpm-gpg/RPM-GPG-KEY-EPEL-7
+
+          params:
+            ap_ip_address1:  { get_param: apserver_mng_ip }
+
+  ap_server_volume:
+    type: OS::Cinder::Volume
+    properties:
+      availability_zone: {get_param: availability_zone}
+      description: 'web server volume'
+      name: ap_server_sysvol
+      size: 30
+      volume_type: 'M1'
+      image: {get_param: os_image_name}
+
+  ap_server_piolog_volume:
+    type: OS::Cinder::Volume
+    properties:
+      availability_zone: {get_param: availability_zone}
+      description: 'ap server piolog volume'
+      name: ap_server_piologvol
+      size: 50
+      volume_type: 'M1'
+
+  ap_server_webdav_volume:
+    type: OS::Cinder::Volume
+    properties:
+      availability_zone: {get_param: availability_zone}
+      description: 'ap server webdav volume'
+      name: ap_server_webdavvol
+      size: 100
+      volume_type: 'M1'
+
+  es_server:
+    type: OS::Nova::Server
+    properties:
+      availability_zone: {get_param: availability_zone}
+      block_device_mapping:
+      - volume_id: {get_resource: es_server_volume}
+        device_name: vda
+      - volume_id: {get_resource: es_server_esdata_volume}
+        device_name: vdb
+      diskConfig: MANUAL
+      flavor: 'S-2'
+      key_name: { get_param: es_server_key_name}
+      name: demo_es_server
+      networks:
+      - port: { get_resource: esserver_port }
+      - port: { get_resource: esserver_mng_port}
+      user_data_format: RAW
+      user_data:
+        str_replace:
+          template: |
+            #!/bin/bash -v
+            nmcli connection modify "Wired connection 1" ipv4.method manual
+            nmcli connection modify "Wired connection 1" ipv4.addresses "es_ip_address1/24"
+            nmcli connection modify "Wired connection 1" ipv4.gateway ""
+            nmcli connection modify "Wired connection 1" ipv4.routes "192.168.0.0/16 192.168.0.1"
+            nmcli connection modify "Wired connection 1" ipv4.never-default yes
+            ip route del default via 192.168.0.1
+
+            systemctl restart NetworkManager
+            systemctl restart network
+            nmcli connection down "Wired connection 1"
+            nmcli connection up "Wired connection 1"
+
+            yum install epel-release -y
+            gpg --import /etc/pki/rpm-gpg/RPM-GPG-KEY-EPEL-7
+
+
+          params:
+            es_ip_address1:  { get_param: esserver_mng_ip }
+
+  es_server_volume:
+    type: OS::Cinder::Volume
+    properties:
+      availability_zone: {get_param: availability_zone}
+      description: 'es server volume'
+      name: es_server_sysvol
+      size: 30
+      volume_type: 'M1'
+      image: {get_param: os_image_name}
+
+  es_server_esdata_volume:
+    type: OS::Cinder::Volume
+    properties:
+      availability_zone: {get_param: availability_zone}
+      description: 'es server esdata volume'
+      name: es_server_esdatavol
+      size: 200
+      volume_type: 'M1'
