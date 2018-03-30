@@ -475,7 +475,7 @@ resources:
       router_id: { get_resource: secure_router }
       availability_zone: {get_param: availability_zone}
 
- sec_firewall_policy:
+  sec_firewall_policy:
      type: OS::Neutron::FirewallPolicy
      properties:
        name: secure_firewall_policy
@@ -491,7 +491,7 @@ resources:
         - {get_resource: sec_firewall_rule_008}
         - {get_resource: sec_firewall_rule_999}
 
- sec_firewall_rule_001:
+  sec_firewall_rule_001:
     type: OS::Neutron::FirewallRule
     properties:
       availability_zone: { get_param: availability_zone }
@@ -728,7 +728,7 @@ resources:
       ip_version: "4"
       source_ip_address: "0.0.0.0/0"
 
- mng_firewall:
+  mng_firewall:
     type: OS::Neutron::Firewall
     properties:
       name: management_firewall
