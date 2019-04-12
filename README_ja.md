@@ -47,6 +47,14 @@ DMZネットワーク、Secureネットワーク、Managementネットワーク�
 ### 5: セキュリティグループの作成
 02_personium_security_group.yamlを使用して、セキュリティグループを作成します。
 
+ *  Parametersセクションのavailability_zoneをjp-west-1aからご利用の環境に合わせて修正します。
+```
+  availability_zone:
+    type: string
+    description: Availability zone
+    default: jp-west-1a
+```
+
 ### 6: サーバ作成準備
 03_personium_3server.yamlを編集します。   
 
