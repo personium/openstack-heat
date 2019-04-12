@@ -47,6 +47,14 @@ Connect DMZ network, Secure network, Management network to external network.
 ### 5: Create security group
 Use 02_personium_security_group.yaml to create a security group.
 
+ *  change the Availability Zone from jp-west-1a as suitable for your environment.
+```
+ availability_zone:
+    type: string
+    description: Availability zone
+    default: jp-west-1a
+```
+
 ### 6: Preparation for server creation
 Edit 03_personium_3server.yaml.
 
